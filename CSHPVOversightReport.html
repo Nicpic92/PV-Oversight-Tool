@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mirra Oversight Auditor - V2.1.3</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root { --primary: #2563eb; --success: #16a34a; --warning: #f59e0b; --danger: #dc2626; --purple: #8b5cf6; --slate: #64748b; --info: #0891b2; --dark: #0f172a; --gold: #c2410c; --cyan: #06b6d4; --dna: #ec4899; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; padding: 20px; color: #1e293b; }
+        .container { max-width: 1600px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .step-box { border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 20px; background: #fff; }
+        .step-title { font-weight: bold; margin-bottom: 12px; display: block; color: var(--primary); text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; }
+        .upload-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+        .file-card { border: 2px dashed #cbd5e1; padding: 15px; text-align: center; border-radius: 8px; cursor: pointer; transition: 0.3s; background: white; min-height: 80px; display: flex; flex-direction: column; justify-content: center; overflow: hidden; font-size: 0.8rem; }
+        .file-card.loaded { border-color: var(--success); background: #f0fdf4; border-style: solid; }
+        .dashboard { display: grid; grid-template-columns: repeat(9, 1fr); gap: 10px; margin-bottom: 20px; }
+        .stat { padding: 15px; border-radius: 8px; color: white; text-align: center; border-bottom: 4px solid rgba(0,0,0,0.1); }
+        .stat-val { font-size: 1.4rem; font-weight: 800; display: block; }
+        .stat-label { font-size: 0.6rem; text-transform: uppercase; font-weight: 700; opacity: 0.9; }
+        .btn { border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; transition: 0.2s; font-size: 0.85rem; text-align: center; width: 100%; text-decoration: none; }
+        .log-box { font-family: monospace; font-size: 0.65rem; background: #1e293b; color: #38bdf8; padding: 10px; border-radius: 4px; height: 100px; overflow-y: scroll; margin-top: 10px; }
+        .filter-flex { display: flex; gap: 20px; align-items: flex-end; margin-bottom: 15px; flex-wrap: wrap; }
+        .toggle-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; }
+        .toggle-item { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2 style="text-align:center;">Mirra Oversight Auditor (V2.1.3)</h2>
+    <p style="text-align:center; color: var(--slate); font-size: 0.85rem;">Entity Matching | Historical Tracking | Multi-Tab Pivot Generation</p>
+    
+    <div class="step-box" style="background:#eff6ff; border: 2px solid var(--primary);">
+        <span class="step-title">Step 0: Bulk Folder Ingestion</span>
+        <button class="btn" style="background:var(--primary)" onclick="document.getElementById('folderIn').click()">📁 UPLOAD CLIENT FOLDER</button>
+        <input type="file" id="folderIn" webkitdirectory directory multiple hidden>
+    </div>
+
+    <div class="step-box">
+        <span class="step-title">1. Data Ingestion</span>
+        <div class="upload-grid">
+            <div class="file-card" id="jsonBox" onclick="document.getElementById('jsonIn').click()"><strong>Master JSON</strong><span id="jsonName">No file</span><input type="file" id="jsonIn" hidden accept=".json"></div>
+            <div class="file-card" id="vendorBox" onclick="document.getElementById('vendorIn').click()"><strong>Vendor Report</strong><span id="vendorName">No file</span><input type="file" id="vendorIn" hidden accept=".xlsx, .xls"></div>
+            <div class="file-card" id="claimBox" onclick="document.getElementById('claimIn').click()"><strong>Claim Inventory</strong><span id="claimName">No file</span><input type="file" id="claimIn" hidden accept=".xlsx, .xls"></div>
+            <div class="file-card" id="yesterdayBox" style="border-color: var(--purple);" onclick="document.getElementById('yesterdayIn').click()"><strong>Yesterday's Enriched</strong><span id="yesterdayName">Optional Detection</span><input type="file" id="yesterdayIn" hidden accept=".xlsx, .xls"></div>
+        </div>
+        <div id="debugLog" class="log-box">System ready...</div>
+    </div>
+
+    <div class="step-box">
+        <span class="step-title">2. Contract Foundation</span>
+        <div class="upload-grid" style="grid-template-columns: 1fr 1fr;">
+            <div class="file-card" id="provBox" onclick="document.getElementById('provIn').click()"><strong>Prov Contracts</strong><span id="provName">No file</span><input type="file" id="provIn" hidden accept=".xlsx, .xls"></div>
+            <div class="file-card" id="facBox" onclick="document.getElementById('facIn').click()"><strong>Fac Contracts</strong><span id="facName">No file</span><input type="file" id="facIn" hidden accept=".xlsx, .xls"></div>
+        </div>
+    </div>
+
+    <div class="step-box">
+        <span class="step-title">3. Validation Toggles</span>
+        <div class="toggle-grid">
+            <label class="toggle-item"><input type="checkbox" id="chkAddr" checked> Address Mismatch Check</label>
+            <label class="toggle-item"><input type="checkbox" id="chkW9" checked> W9 Approval Check</label>
+            <label class="toggle-item"><input type="checkbox" id="chkDate" checked> DOS Date Range Check</label>
+            <label class="toggle-item"><input type="checkbox" id="chkHDR" checked> High Dollar Review Check</label>
+            <label class="toggle-item"><input type="checkbox" id="chkLink" checked> TIN/NPI Handshake Check</label>
+        </div>
+    </div>
+
+    <div id="filterSection" style="display:none;" class="step-box">
+        <span class="step-title">4. Filter Scope</span>
+        <div class="filter-flex">
+            <div style="display:flex; flex-direction:column; gap:5px;"><label style="font-size:0.75rem; font-weight:bold;">Received Date Start</label><input type="date" id="dateStart" style="padding:8px; border:1px solid #cbd5e1; border-radius:4px;"></div>
+            <div style="display:flex; flex-direction:column; gap:5px;"><label style="font-size:0.75rem; font-weight:bold;">Received Date End</label><input type="date" id="dateEnd" style="padding:8px; border:1px solid #cbd5e1; border-radius:4px;"></div>
+        </div>
+        <div id="stateSelector" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-top:15px;"></div>
+    </div>
+
+    <button id="runBtn" class="btn" style="background:var(--primary); display:none; margin-bottom:25px; height: 55px; font-size: 1.2rem;">RUN AUDIT</button>
+
+    <div id="resultsSection" style="display:none;">
+        <div class="dashboard">
+            <div class="stat" style="background:var(--success)"><span class="stat-val" id="sReady">0</span><span class="stat-label">READY</span></div>
+            <div class="stat" style="background:var(--gold)"><span class="stat-val" id="sHDR">0</span><span class="stat-label">HDR</span></div>
+            <div class="stat" style="background:var(--danger)"><span class="stat-val" id="sExpired">0</span><span class="stat-label">DATE INVALID</span></div>
+            <div class="stat" style="background:var(--purple)"><span class="stat-val" id="sMismatch">0</span><span class="stat-label">ADDR GAP</span></div>
+            <div class="stat" style="background:var(--cyan)"><span class="stat-val" id="sBlank">0</span><span class="stat-label">BLANK ADDR</span></div>
+            <div class="stat" style="background:var(--info)"><span class="stat-val" id="sW9">0</span><span class="stat-label">W9 GAP</span></div>
+            <div class="stat" style="background:var(--dark)"><span class="stat-val" id="sUnlinked">0</span><span class="stat-label">UNLINKED</span></div>
+            <div class="stat" style="background:var(--warning)"><span class="stat-val" id="sMissing">0</span><span class="stat-label">OUTREACH</span></div>
+            <div class="stat" style="background:var(--slate)"><span class="stat-val" id="sExcluded">0</span><span class="stat-label">EXCLUDED</span></div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 12px;">
+            <button class="btn" style="background:var(--slate)" onclick="downloadMaster()">Download ENRICHED Master</button>
+            <button class="btn" style="background:var(--purple)" onclick="downloadPivot()">Download PROV OPS PIVOT</button>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+            <button class="btn" style="background:var(--info)" onclick="generateDOCX()">Download WORD SUMMARY</button>
+            <button id="dnaBtn" class="btn" style="background:var(--dna)" onclick="copyAIDNA()">🧬 COPY AI DNA PROMPT</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const OON_SHELLS = ['CON000000142', 'CON000000220', 'CON000000086', 'CON000000088', 'CON000000561'];
+    const HDR_STATES = ["MANAGEMENTREVIEW", "PAYERREVIEW", "PR", "MR"];
+    const WORD_DOC_STATES = ["MANAGEMENTREVIEW", "ONHOLD", "PEND"];
+
+    const AUDIT_METADATA = {
+        "ADDRESS DISCREPANCY": { cause: "Address Mismatch", solution: "Update Pay-To address in PV at TIN level", owner: "Prov Ops" },
+        "ADDRESS BLANK ON INVENTORY REPORT": { cause: "Missing Pay-To", solution: "Reporting Dev / Claims Reject", owner: "Report Dev/Claims" },
+        "DATE INVALID": { cause: "DOS outside contract range", solution: "Verify Eff Date vs DOS", owner: "Prov Ops / Claims" },
+        "OUTREACH: NO RECORD FOUND": { cause: "Record not found in PV", solution: "Create NPI/TIN in PV", owner: "Prov Ops" },
+        "OUTREACH: UNLINKED NPI/TIN PAIR": { cause: "TIN and NPI are not linked in PV", solution: "Link NPI/TIN in PV", owner: "Prov Ops" },
+        "HIGH DOLLAR REVIEW (HDR)": { cause: "HDR Threshold Met", solution: "Confirm Pricing/Case Rate accuracy", owner: "Management / Senior Auditor" },
+        "READY (INN)": { cause: "Verified", solution: "Process Claim", owner: "Claims/L1" },
+        "READY (OON)": { cause: "Verified", solution: "Process Claim", owner: "Claims/L1" },
+        "W9 GAP": { cause: "W9 is not loaded", solution: "Collect W9/Update status", owner: "Prov Ops" }
+    };
+
+    let masterMap = new Map();
+    let knownTins = new Set();
+    let knownNpis = new Set();
+    let claimData = [];
+    let vendorMap = new Map();
+    let contractLifecycleMap = new Map();
+    let yesterdayMap = new Map();
+    let detectedPayer = "CLIENT";
+
+    const clean = (s) => String(s || "").trim().toUpperCase().replace(/^0+/, '');
+    const cleanCID = (s) => String(s || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const getNum = (s) => {
+        const str = String(s || "").replace(/,/g, '').trim();
+        return (str.match(/\d+/) || ["X"])[0];
+    };
+
+    const findValue = (obj, keyArray) => {
+        if (!obj) return null;
+        const keys = Object.keys(obj);
+        for (const target of keyArray) {
+            const t = target.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            const foundKey = keys.find(k => k.toUpperCase().replace(/[^A-Z0-9]/g, '') === t);
+            if (foundKey && String(obj[foundKey]).trim() !== "") return obj[foundKey];
+        }
+        return null;
+    };
+
+    const getTimestamp = (val) => {
+        if (!val) return null;
+        let d = new Date(val);
+        let num = Number(val);
+        if (!isNaN(num) && num > 20000) d = new Date(Date.UTC(1899, 11, 30 + Math.floor(num)));
+        return isNaN(d.getTime()) ? null : Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+    };
+
+    const formatDate = (ts) => ts ? new Date(ts).toLocaleDateString() : "";
+    const toISODate = (ts) => ts ? new Date(ts).toISOString().split('T')[0] : "";
+    const getToday = () => new Date().toISOString().split('T')[0];
+
+    const handleExcel = (file, cb) => {
+        const r = new FileReader();
+        r.onload = (e) => {
+            const data = new Uint8Array(e.target.result);
+            const wb = XLSX.read(data, { type: 'array' });
+            cb(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" }));
+        };
+        r.readAsArrayBuffer(file);
+    };
+
+    const processYesterday = (file) => handleExcel(file, d => {
+        yesterdayMap.clear();
+        d.forEach(row => {
+            const cNum = clean(findValue(row, ["Claim Number", "ClaimNumber"]));
+            if (cNum) yesterdayMap.set(cNum, {
+                state: findValue(row, ["Claim State", "State"]),
+                issue: findValue(row, ["Audit_Root_Cause", "Audit Root Cause", "Audit_Category"])
+            });
+        });
+        document.getElementById('yesterdayBox').classList.add('loaded');
+        document.getElementById('yesterdayName').innerText = file.name;
+    });
+
+    const processJson = (file) => {
+        const r = new FileReader();
+        r.onload = (e) => {
+            masterMap.clear(); knownTins.clear(); knownNpis.clear();
+            const data = JSON.parse(e.target.result);
+            data.forEach(row => {
+                const tax = clean(findValue(row, ["TaxID", "Tax ID", "BillingProviderTaxID", "Billing Provider Tax ID"]));
+                const npi = clean(findValue(row, ["NPI", "RenderingProviderNPI", "Rendering Provider NPI"]));
+                const k = `${tax}_${npi}`;
+                if(!masterMap.has(k)) masterMap.set(k, []);
+                masterMap.get(k).push(row);
+                if (tax) knownTins.add(tax);
+                if (npi) knownNpis.add(npi);
+            });
+            document.getElementById('jsonBox').classList.add('loaded');
+            checkReady();
+        };
+        r.readAsText(file);
+    };
+
+    const processVendor = (file) => handleExcel(file, d => {
+        vendorMap = new Map(d.map(v => [clean(findValue(v, ["TaxID", "Tax ID", "Billing Provider Tax ID"])), v]));
+        document.getElementById('vendorBox').classList.add('loaded');
+        checkReady();
+    });
+
+    const processClaims = (file) => handleExcel(file, d => {
+        claimData = d;
+        detectedPayer = clean(findValue(d[0], ["Payer"])) || "CLIENT";
+        document.getElementById('claimBox').classList.add('loaded');
+        const dateValues = d.map(c => getTimestamp(findValue(c, ["Received Date", "ReceivedDate", "Received_Date"]))).filter(t => t !== null);
+        if (dateValues.length > 0) {
+            document.getElementById('dateStart').value = toISODate(Math.min(...dateValues));
+            document.getElementById('dateEnd').value = toISODate(Math.max(...dateValues));
+        }
+        const states = [...new Set(d.map(c => findValue(c, ["Claim State", "State"]) || 'UNKNOWN'))].sort();
+        const container = document.getElementById('stateSelector'); container.innerHTML = '';
+        states.forEach(s => {
+            const label = document.createElement('label');
+            label.style = "font-size:0.7rem; display:flex; align-items:center; gap:5px; background:white; padding:5px; border-radius:4px; border:1px solid #e2e8f0;";
+            label.innerHTML = `<input type="checkbox" value="${s}" checked> ${s}`;
+            container.appendChild(label);
+        });
+        document.getElementById('filterSection').style.display = 'block';
+        checkReady();
+    });
+
+    const processContracts = (file, type) => handleExcel(file, d => {
+        d.forEach(row => {
+            const npi = clean(findValue(row, ["NPI", "NPI Number", "Rendering Provider NPI"]));
+            const cid = cleanCID(findValue(row, ["Unique ContractId", "Contract ID"]));
+            contractLifecycleMap.set(`${npi}_cid_${cid}`, row);
+        });
+        document.getElementById(type + 'Box').classList.add('loaded');
+        checkReady();
+    });
+
+    document.getElementById('folderIn').onchange = (e) => {
+        const files = Array.from(e.target.files);
+        let enrichedFiles = [];
+        files.forEach(f => {
+            const n = f.name.toUpperCase();
+            if (n.includes(".JSON")) processJson(f);
+            if (n.includes(".XLS") && (n.includes("VENDOR W9"))) processVendor(f);
+            if (n.includes(".XLS") && (n.includes("CLAIM STATUS"))) processClaims(f);
+            if (n.includes(".XLS") && (n.includes("PROV CONTRACTS"))) processContracts(f, 'prov');
+            if (n.includes(".XLS") && (n.includes("FAC CONTRACTS"))) processContracts(f, 'fac');
+            if (n.includes("PV OVERSIGHT REPORT") && n.includes(".XLS")) {
+                const dateMatch = n.match(/(\d{4}-\d{2}-\d{2})|(\d{2}-\d{2}-\d{4})/);
+                enrichedFiles.push({ file: f, date: dateMatch ? new Date(dateMatch[0]) : new Date(0) });
+            }
+        });
+        if (enrichedFiles.length > 0) {
+            enrichedFiles.sort((a, b) => b.date - a.date);
+            processYesterday(enrichedFiles[0].file);
+        }
+    };
+
+    document.getElementById('yesterdayIn').onchange = (e) => processYesterday(e.target.files[0]);
+    document.getElementById('jsonIn').onchange = (e) => processJson(e.target.files[0]);
+    document.getElementById('vendorIn').onchange = (e) => processVendor(e.target.files[0]);
+    document.getElementById('claimIn').onchange = (e) => processClaims(e.target.files[0]);
+    document.getElementById('provIn').onchange = (e) => processContracts(e.target.files[0], 'prov');
+    document.getElementById('facIn').onchange = (e) => processContracts(e.target.files[0], 'fac');
+
+    function checkReady() { if (masterMap.size > 0 && claimData.length > 0 && vendorMap.size > 0) document.getElementById('runBtn').style.display = 'block'; }
+
+    document.getElementById('runBtn').onclick = () => {
+        const activeStates = Array.from(document.querySelectorAll('#stateSelector input:checked')).map(i => i.value.toUpperCase());
+        const startVal = document.getElementById('dateStart').value;
+        const endVal = document.getElementById('dateEnd').value;
+        const rangeStart = startVal ? new Date(startVal + "T00:00:00Z").getTime() : null;
+        const rangeEnd = endVal ? new Date(endVal + "T23:59:59Z").getTime() : null;
+
+        const vToggle = {
+            addr: document.getElementById('chkAddr').checked,
+            w9: document.getElementById('chkW9').checked,
+            date: document.getElementById('chkDate').checked,
+            hdr: document.getElementById('chkHDR').checked,
+            link: document.getElementById('chkLink').checked
+        };
+
+        let b = { ready: [], hdr: [], expired: [], mismatch: [], blank: [], w9: [], unlinked: [], missing: [], master: [] };
+        let wordBuckets = { "1": { data: [], req: new Set(), nreq: new Set() }, "2.1": { data: [], tins: new Set(), npis: new Set() }, "2.2": { data: [], npis: new Set() }, "2.3": { data: [], tins: new Set() }, "3": { data: [], tins: new Set(), npis: new Set() }, "4": [], "5": [], "6": [] };
+        let excludedCount = 0;
+
+        claimData.forEach(cl => {
+            const rawState = String(findValue(cl, ["Claim State", "State"]) || 'UNKNOWN').toUpperCase();
+            if (!activeStates.includes(rawState)) return;
+            const receivedTS = getTimestamp(findValue(cl, ["Received Date", "ReceivedDate", "Received_Date"]));
+            if ((rangeStart && receivedTS < rangeStart) || (rangeEnd && receivedTS > rangeEnd)) { excludedCount++; return; }
+
+            const cNum = clean(findValue(cl, ["Claim Number", "ClaimNumber"]));
+            const tax = clean(findValue(cl, ["Billing Provider Tax ID", "TaxID", "Tax ID"]));
+            const npi = clean(findValue(cl, ["Rendering Provider NPI", "NPI", "Rendering_Provider_NPI"]));
+            const dosTS = getTimestamp(findValue(cl, ["DOSFromDate", "DOS"]));
+            const clAddr = String(findValue(cl, ["Pay-To-Provider Address", "Address", "PayTo_Address"]) || "").trim();
+            const claimCategory = (findValue(cl, ["Category"]) || "").toUpperCase();
+            const netPay = parseFloat(String(findValue(cl, ["TotalNetPaymentAmt"]) || "0").replace(/[^0-9.]/g, ''));
+            
+            const hist = yesterdayMap.get(cNum) || { state: "NEW", issue: "NEW" };
+            const isClAddrBlank = !clAddr || clAddr.toUpperCase() === "NONE" || getNum(clAddr) === "X";
+            const vendor = vendorMap.get(tax) || {};
+            
+            const isW9Approved = !vToggle.w9 || (String(findValue(vendor, ["Is Vendor Approved", "Is W9 Approved", "W9 Approved"]) || "").toUpperCase()).startsWith("Y") || findValue(vendor, ["Is Vendor Approved"]) === true;
+            const w9ReqVal = findValue(vendor, ["W9s requested", "W9 requested", "W9 Req?"]);
+            const isW9Req = String(w9ReqVal || "").toUpperCase().startsWith("Y") || w9ReqVal === true;
+
+            const matches = masterMap.get(`${tax}_${npi}`) || [];
+            let finalIssues = []; let successDetails = null;
+
+            if (isClAddrBlank) finalIssues.push({ cat: "ADDRESS BLANK ON INVENTORY REPORT", logic: "Missing/Invalid Pay-To." });
+
+            if (matches.length === 0 && vToggle.link) {
+                let sub = (vendorMap.has(tax) ? "3" : "2.1"); 
+                let catLabel = sub === "3" ? "OUTREACH: UNLINKED NPI/TIN PAIR" : "OUTREACH: NO RECORD FOUND";
+                let missingDetail = "N/A";
+                if (catLabel === "OUTREACH: NO RECORD FOUND") {
+                    let tExists = knownTins.has(tax);
+                    let nExists = knownNpis.has(npi);
+                    if (!tExists && !nExists) missingDetail = "BOTH TIN & NPI MISSING";
+                    else if (!tExists) missingDetail = "TIN MISSING";
+                    else if (!nExists) missingDetail = "NPI MISSING";
+                    else missingDetail = "PAIR UNLINKED";
+                }
+                finalIssues.push({ cat: catLabel, logic: "Baseline Handshake Failed.", subCode: sub, missingDetail: missingDetail });
+            } else {
+                let hasDatePass = false; let hasAddrPass = false; let bestRange = "NONE";
+                let loopItems = (matches.length === 0 && !vToggle.link) ? [{}] : matches;
+
+                for (let m of loopItems) {
+                    const cid = cleanCID(findValue(m, ["CON_Number", "CON Number"])) || "BYPASS_LINK";
+                    const realLc = contractLifecycleMap.get(`${npi}_cid_${cid}`);
+                    const eff = realLc ? getTimestamp(findValue(realLc, ["Effective Date"])) : null;
+                    const term = realLc ? getTimestamp(findValue(realLc, ["Termination Date"])) : null;
+                    
+                    const dPass = !vToggle.date || ((!eff || dosTS >= eff) && (!term || dosTS <= term));
+                    const aPass = !vToggle.addr || (!isClAddrBlank && (getNum(clAddr) === getNum(findValue(m, ["PV_PayTo_FullAddress", "Address"]))));
+                    
+                    if (dPass) hasDatePass = true; 
+                    if (aPass) hasAddrPass = true;
+                    if (realLc) bestRange = `${formatDate(eff)} to ${formatDate(term)}`;
+                    
+                    if (dPass && aPass && isW9Approved) { successDetails = { cid, network: OON_SHELLS.some(sh => cid.includes(sh)) ? "OON" : "INN", lc: realLc, json: m }; break; }
+                }
+
+                if (successDetails) {
+                    const isHDR = vToggle.hdr && HDR_STATES.some(s => rawState.includes(s)) && netPay >= (claimCategory.includes("PROF") ? 3500 : 10000);
+                    finalIssues.push({ cat: isHDR ? "HIGH DOLLAR REVIEW (HDR)" : (successDetails.network === "INN" ? "READY (INN)" : "READY (OON)"), logic: isHDR ? `Valid foundation + $${netPay.toLocaleString()} in ${rawState}` : "Verified." });
+                } else {
+                    if (!isW9Approved && vToggle.w9) finalIssues.push({ cat: "W9 GAP", logic: `Tax ID ${tax} unapproved.` });
+                    if (!hasDatePass && vToggle.date) finalIssues.push({ cat: "DATE INVALID", logic: `DOS: ${formatDate(dosTS)} | Best Contract Range: ${bestRange}` });
+                    if (!hasAddrPass && !isClAddrBlank && vToggle.addr) finalIssues.push({ cat: "ADDRESS DISCREPANCY", logic: "Mismatch vs JSON Pool" });
+                }
+            }
+
+            finalIssues.forEach(iss => {
+                const meta = AUDIT_METADATA[iss.cat] || { cause: "Unknown", solution: "Verify", owner: "Auditor" };
+                const matchJson = successDetails ? successDetails.json : (matches[0] || {});
+                const contract = (successDetails && successDetails.lc) ? successDetails.lc : {};
+                let detailedRootCause = meta.cause;
+                if (iss.cat === "OUTREACH: NO RECORD FOUND" && iss.missingDetail) detailedRootCause = `${meta.cause}: ${iss.missingDetail}`;
+
+                let row = {
+                    "Yesterday State": hist.state,
+                    "Yesterday Issue": hist.issue,
+                    "TIN_NPI": `${tax}_${npi}`,
+                    "Payer": detectedPayer,
+                    "Audit_Owner": meta.owner,
+                    "Audit_Category": iss.cat,
+                    "Audit_Root_Cause": detailedRootCause,
+                    "Audit Pay-To": findValue(matchJson, ["PV_PayTo_FullAddress", "Address"]) || "NONE FOUND",
+                    "Claim Pay-To": clAddr,
+                    "Audit_Solution": meta.solution,
+                    "Audit_Decision_Logic": iss.logic,
+                    "Category": claimCategory,
+                    "Claim Number": cNum,
+                    "Claim Rec'd Date": formatDate(receivedTS),
+                    "Billing Provider Name": findValue(cl, ["Billing Provider Name", "ProviderName"]),
+                    "Billing Provider Tax ID": tax,
+                    "Billing Provider NPI": findValue(cl, ["Billing Provider NPI", "BillingProviderNPI"]),
+                    "Rendering Provider Name": findValue(cl, ["Rendering Provider Name", "RenderingProviderName"]),
+                    "Rendering Provider NPI": npi,
+                    "Claim State": rawState,
+                    "Claim Status": findValue(cl, ["Claim Status"]),
+                    "DOSFromDate": formatDate(dosTS),
+                    "Clean Age": findValue(cl, ["Clean Age"]),
+                    "Age": findValue(cl, ["Age"]),
+                    "TotalCharges": findValue(cl, ["TotalCharges"]),
+                    "TotalNetPaymentAmt": netPay,
+                    "NetworkStatus": successDetails ? successDetails.network : (iss.cat.includes("OON") ? "OON" : "NOT FOUND"),
+                    "JSON_PVContractStatus": findValue(matchJson, ["PVContractStatus", "Status"]),
+                    "CON_Network Affiliation": findValue(matchJson, ["CON_NetworkAffiliation", "Network"]),
+                    "PBP Name": findValue(cl, ["PBP Name"]),
+                    "Plan Name": findValue(cl, ["Plan Name"]),
+                    "DSNP or Non DSNP": findValue(cl, ["DSNP or Non DSNP"]),
+                    "Claim Edits": findValue(cl, ["Claim Edits"]),
+                    "Claim Notes": findValue(cl, ["Claim Notes"]),
+                    "JSON_Billing Provider Tax ID": findValue(matchJson, ["TaxID", "BillingProviderTaxID"]),
+                    "JSON_Rendering Provider NPI": findValue(matchJson, ["NPI", "RenderingProviderNPI"]),
+                    "JSON_PV_PayTo_FullAddress": findValue(matchJson, ["PV_PayTo_FullAddress", "Address"]),
+                    "JSON_CON_Number": findValue(matchJson, ["CON_Number", "CON Number"]),
+                    "PV Pay-To Name": findValue(matchJson, ["PV_PayTo_Name", "ProviderName"]),
+                    "W9 Uploaded?": isW9Approved ? "YES" : "NO",
+                    "W9 Uploaded Date": formatDate(getTimestamp(findValue(vendor, ["W9 Uploaded Date"]))),
+                    "Vendor Validated?": isW9Approved ? "TRUE" : "FALSE",
+                    "W9 Approved": isW9Approved ? "YES" : "NO",
+                    "W9 Req?": isW9Req ? "YES" : "NO",
+                    "Req Date": formatDate(getTimestamp(findValue(vendor, ["Req Date", "Requested Date"]))),
+                    "Rec'd Date": formatDate(getTimestamp(findValue(vendor, ["Rec'd Date", "Received Date"]))),
+                    "W9 Letter Requested": findValue(vendor, ["Is W9Generation Letter Requested", "IsW9GenerationLetterRequested"]),
+                    "W9 Letter Req Date": formatDate(getTimestamp(findValue(vendor, ["W9Generation Letter Requested Date", "W9GenerationLetterRequestedDate"]))),
+                    "Outreach Missing Detail": iss.missingDetail || "N/A",
+                    "CON_Effective Date": formatDate(getTimestamp(findValue(contract, ["Effective Date"]))),
+                    "CON_Termination Date": formatDate(getTimestamp(findValue(contract, ["Termination Date"])))
+                };
+
+                if (iss.cat.includes("HDR")) b.hdr.push(row);
+                else if (iss.cat.startsWith("READY")) b.ready.push(row);
+                else if (iss.cat === "DATE INVALID") b.expired.push(row);
+                else if (iss.cat === "W9 GAP") b.w9.push(row);
+                else if (iss.cat === "OUTREACH: UNLINKED NPI/TIN PAIR") b.unlinked.push(row);
+                else if (iss.cat === "OUTREACH: NO RECORD FOUND") b.missing.push(row);
+                else if (iss.cat === "ADDRESS BLANK ON INVENTORY REPORT") b.blank.push(row); 
+                else if (iss.cat === "ADDRESS DISCREPANCY") b.mismatch.push(row);
+                b.master.push(row);
+
+                if (WORD_DOC_STATES.some(s => rawState.includes(s))) {
+                    if (iss.cat === "W9 GAP") { wordBuckets["1"].data.push(row); if (isW9Req) wordBuckets["1"].req.add(tax); else wordBuckets["1"].nreq.add(tax); }
+                    else if (iss.subCode === "2.1") { wordBuckets["2.1"].data.push(row); wordBuckets["2.1"].tins.add(tax); wordBuckets["2.1"].npis.add(npi); }
+                    else if (iss.subCode === "2.2") { wordBuckets["2.2"].data.push(row); wordBuckets["2.2"].npis.add(npi); }
+                    else if (iss.subCode === "2.3") { wordBuckets["2.3"].data.push(row); wordBuckets["2.3"].tins.add(tax); }
+                    else if (iss.subCode === "3") { wordBuckets["3"].data.push(row); wordBuckets["3"].tins.add(tax); wordBuckets["3"].npis.add(npi); }
+                    else if (iss.cat === "READY (INN)") wordBuckets["4"].push(row);
+                    else if (iss.cat === "READY (OON)") wordBuckets["5"].push(row);
+                    else if (iss.cat === "DATE INVALID") wordBuckets["6"].push(row);
+                }
+            });
+        });
+
+        ["sReady","sHDR","sExpired","sMismatch","sBlank","sW9","sUnlinked","sMissing","sExcluded"].forEach(id => {
+            const key = id.substring(1).toLowerCase();
+            const map = {ready:'ready', hdr:'hdr', expired:'expired', mismatch:'mismatch', blank:'blank', w9:'w9', unlinked:'unlinked', missing:'missing', excluded:'excluded'};
+            document.getElementById(id).innerText = (key === 'excluded') ? excludedCount : b[map[key]].length;
+        });
+        window.reports = b; window.wordBuckets = wordBuckets;
+        document.getElementById('resultsSection').style.display = 'block';
+    };
+
+    window.downloadMaster = () => {
+        const ws = XLSX.utils.json_to_sheet(window.reports.master);
+        const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Audit");
+        XLSX.writeFile(wb, `${detectedPayer} PV Oversight Report ${getToday()}.xlsx`);
+    };
+
+    window.downloadPivot = () => {
+        if (!window.reports || !window.reports.master.length) return alert("Run Audit first.");
+        const tabs = { "OUTREACH_ NO RECORD FOUND": [], "W9 GAP": [], "ADDRESS DISCREPANCY": [], "OUTREACH_ UNLINKED NPI_TIN PAIR": [], "DATE INVALID": [] };
+        const aggregate = (data, catKey, groupKeys, rowMapper) => {
+            const map = new Map();
+            data.filter(r => r.Audit_Category.includes(catKey)).forEach(r => {
+                const key = groupKeys.map(k => r[k]).join('|');
+                if (!map.has(key)) map.set(key, { ...rowMapper(r), Issue_Count: 0, _claims: [] });
+                const entry = map.get(key); entry.Issue_Count++; entry._claims.push(r["Claim Number"]);
+            });
+            return Array.from(map.values()).map(e => { e.Claim_Examples = e._claims.join(", "); delete e._claims; return e; });
+        };
+        tabs["OUTREACH_ NO RECORD FOUND"] = aggregate(window.reports.master, "NO RECORD FOUND", ["TIN_NPI"], r => ({ "TIN_NPI": r.TIN_NPI, "Tax ID": r["Billing Provider Tax ID"], "NPI": r["Billing Provider NPI"], "Name": r["Billing Provider Name"], "Detail": r["Outreach Missing Detail"], "Root": r.Audit_Root_Cause }));
+        tabs["W9 GAP"] = aggregate(window.reports.master, "W9 GAP", ["TIN_NPI"], r => ({ "TIN_NPI": r.TIN_NPI, "Tax ID": r["Billing Provider Tax ID"], "NPI": r["Billing Provider NPI"], "W9?": r["W9 Uploaded?"], "Validated?": r["Vendor Validated?"], "Root": r.Audit_Root_Cause }));
+        tabs["ADDRESS DISCREPANCY"] = aggregate(window.reports.master, "ADDRESS DISCREPANCY", ["TIN_NPI", "Claim Pay-To"], r => ({ "TIN_NPI": r.TIN_NPI, "Tax ID": r["Billing Provider Tax ID"], "NPI": r["Billing Provider NPI"], "Claim Addr": r["Claim Pay-To"], "Audit Addr": r["Audit Pay-To"], "Root": r.Audit_Root_Cause }));
+        tabs["OUTREACH_ UNLINKED NPI_TIN PAIR"] = aggregate(window.reports.master, "UNLINKED NPI/TIN PAIR", ["TIN_NPI"], r => ({ "TIN_NPI": r.TIN_NPI, "Tax ID": r["Billing Provider Tax ID"], "NPI": r["Billing Provider NPI"], "Name": r["Billing Provider Name"], "Root": r.Audit_Root_Cause }));
+        tabs["DATE INVALID"] = aggregate(window.reports.master, "DATE INVALID", ["TIN_NPI", "DOSFromDate"], r => ({ "TIN_NPI": r.TIN_NPI, "Tax ID": r["Billing Provider Tax ID"], "NPI": r["Billing Provider NPI"], "DOS": r.DOSFromDate, "Logic": r.Audit_Decision_Logic }));
+        const wb = XLSX.utils.book_new();
+        Object.keys(tabs).forEach(t => XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(tabs[t]), t.substring(0, 31)));
+        XLSX.writeFile(wb, `${detectedPayer} Prov Ops Master Claim Report ${getToday()}.xlsx`);
+    };
+
+    window.generateDOCX = () => {
+        const w = window.wordBuckets; const today = new Date().toLocaleDateString();
+        const totalOutreach = w["2.1"].data.length + w["2.2"].data.length + w["2.3"].data.length;
+        let html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'></head><body style="font-family:'Segoe UI', Arial; font-size:10pt;"><table border="1" cellspacing="0" cellpadding="5" style="border-collapse:collapse; width:100%; font-size:9pt;"><tr style="background:#f2f2f2; font-weight:bold; text-align:center;"><td>Sl No.</td><td>Category</td><td>Claims Count</td><td>Action Owner</td><td>Notes Actions</td></tr>
+        <tr><td style="text-align:center;">1</td><td style="font-weight:bold;">W9 Gap</td><td style="text-align:center;">${w["1"].data.length}</td><td>Provider Ops</td><td>As of ${today},<br>Tax Ids requested: <b>${w["1"].req.size}</b><br>Tax Ids not requested: <b>${w["1"].nreq.size}</b></td></tr>
+        <tr><td style="text-align:center;">2</td><td style="font-weight:bold;">Outreach</td><td style="text-align:center;">${totalOutreach}</td><td>Provider Ops and PV team</td><td>Validation vs PV...</td></tr>
+        <tr><td style="text-align:center;">2.1</td><td>Both Tax IDs and NPI not found</td><td style="text-align:center;">${w["2.1"].data.length}</td><td>Provider Ops/PV</td><td><b>${w["2.1"].tins.size}</b> TINs, <b>${w["2.1"].npis.size}</b> NPIs</td></tr>
+        <tr><td style="text-align:center;">3</td><td>Unlinked Pair</td><td style="text-align:center;">${w["3"].data.length}</td><td>Prov Ops</td><td><b>${w["3"].tins.size}</b> TINs, <b>${w["3"].npis.size}</b> NPIs</td></tr>
+        <tr><td style="text-align:center;">4</td><td>READY (INN)</td><td style="text-align:center;">${w["4"].length}</td><td>Claims</td><td>Process Claim</td></tr>
+        <tr><td style="text-align:center;">6</td><td>DATE INVALID</td><td style="text-align:center;">${w["6"].length}</td><td>Prov Ops</td><td>Verify DOS vs Eff Date</td></tr></table></body></html>`;
+        const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+        const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `Backlog_Reduction_Summary.doc`; link.click();
+    };
+
+    window.copyAIDNA = () => { navigator.clipboard.writeText("Audit Logic: Comparison + Daily History + Pivot Aggregate").then(() => alert("Copied!")); };
+</script>
+</body>
+</html>
